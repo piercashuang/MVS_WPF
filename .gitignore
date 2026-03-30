@@ -1,0 +1,16 @@
+# Visual Studio 临时文件
+.vs/
+[Bb]in/
+[Ob]j/
+*.user
+*.suo
+*.cache
+*.lref
+
+# 用户特定的配置文件
+*.userosscache
+*.sln.docstates
+
+# 其他
+*.tmp
+*.log
