@@ -1,0 +1,15 @@
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\bin\Debug\MVS_WPF.exe.config
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\bin\Debug\MVS_WPF.exe
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\bin\Debug\MVS_WPF.pdb
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\obj\Debug\MVS_WPF.csproj.AssemblyReference.cache
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\obj\Debug\MainWindow.g.cs
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\obj\Debug\App.g.cs
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\obj\Debug\MVS_WPF_MarkupCompile.cache
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\obj\Debug\MVS_WPF_MarkupCompile.lref
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\obj\Debug\MainWindow.baml
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\obj\Debug\MVS_WPF.g.resources
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\obj\Debug\MVS_WPF.Properties.Resources.resources
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\obj\Debug\MVS_WPF.csproj.GenerateResource.cache
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\obj\Debug\MVS_WPF.csproj.CoreCompileInputs.cache
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\obj\Debug\MVS_WPF.exe
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\obj\Debug\MVS_WPF.pdb
