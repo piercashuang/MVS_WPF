@@ -16,3 +16,13 @@
 # --- 忽略 Libs 之外的临时文件 ---
 # 注意：05_Depends/Libs 里的 dll 建议保留，不要被上面的 *.dll 误杀了
 !05_Depends/Libs/*.dll
+.vs/MVS_WPF/v16/.suo
+01_Contract/MVS.Contract/obj/Debug/DesignTimeResolveAssemblyReferencesInput.cache
+.vs/MVS_WPF/v16/.suo
+02_Infrastructure/MVS.Infrastructure/obj/Debug/DesignTimeResolveAssemblyReferencesInput.cache
+03_Plugins/MVS.Plugins.HikCamera/obj/Debug/DesignTimeResolveAssemblyReferencesInput.cache
+04_Ui/MVS_WPF/obj/Debug/DesignTimeResolveAssemblyReferencesInput.cache
+.vs/MVS_WPF/v16/.suo
+04_Ui/MVS_WPF/obj/Debug/MVS_WPF.csproj.AssemblyReference.cache
+04_Ui/MVS_WPF/obj/Debug/MVS_WPF_MarkupCompile.cache
+04_Ui/MVS_WPF/obj/Debug/MVS_WPF_MarkupCompile.i.cache
