@@ -7,3 +7,5 @@ D:\Repositories\MVS_WPF\03_Cameras\MVS.Camera.Hik\obj\Debug\MVS.Camera.Hik.cspro
 D:\Repositories\MVS_WPF\03_Cameras\MVS.Camera.Hik\obj\Debug\MVS.Camera.Hik.csproj.CopyComplete
 D:\Repositories\MVS_WPF\03_Cameras\MVS.Camera.Hik\obj\Debug\MVS.Camera.Hik.dll
 D:\Repositories\MVS_WPF\03_Cameras\MVS.Camera.Hik\obj\Debug\MVS.Camera.Hik.pdb
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\bin\Debug\MVS.Camera.Hik.dll
+D:\Repositories\MVS_WPF\04_Ui\MVS_WPF\bin\Debug\MVS.Camera.Hik.pdb

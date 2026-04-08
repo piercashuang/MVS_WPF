@@ -26,8 +26,9 @@ namespace MVS_WPF
             InitializeComponent();
 
             // 【新增】在 UI 初始化完成后，立刻去扫描并加载相机插件
-            MVS.Infrastructure.CameraManager.Instance.ScanAllCameras();
+            
             LoadCameraPlugins();
+            MVS.Infrastructure.CameraManager.Instance.ScanAllCameras();
         }
 
 
