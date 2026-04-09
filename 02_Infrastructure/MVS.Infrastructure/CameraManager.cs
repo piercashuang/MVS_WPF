@@ -5,6 +5,7 @@ using System.IO;
 using System.Reflection;
 using System.Linq;
 using MVS.Contract.Camera;
+using MvCameraControl; // 【关键引入】：Manager 现在直接依赖海康 SDK 进行全局扫描
 
 namespace MVS.Infrastructure
 {
@@ -13,35 +14,23 @@ namespace MVS.Infrastructure
         private static readonly CameraManager _instance = new CameraManager();
         public static CameraManager Instance => _instance;
 
-        // 记录“扫到的信息”和“对应的工厂”
         private class CameraDescriptor
         {
             public ICameraFactory Factory { get; set; }
             public CameraMetaInfo MetaInfo { get; set; }
         }
 
-        // 字典 1：只存储相机的“档案”（SN -> 档案），不分配物理资源
         private readonly ConcurrentDictionary<string, CameraDescriptor> _discoveredCameras = new ConcurrentDictionary<string, CameraDescriptor>();
-
-        // 字典 2：存储真正被用户“打开/连接”的活动相机实例
         private readonly ConcurrentDictionary<string, ICamera> _activeCameras = new ConcurrentDictionary<string, ICamera>();
-
-        // 列表：存储已加载的工厂实例（内存常驻）
         private readonly List<ICameraFactory> _factories = new List<ICameraFactory>();
 
         private CameraManager() { }
 
-        /// <summary>
-        /// 1. 插件加载接口：只负责从硬盘加载 DLL，提取工厂类。
-        /// 【建议调用时机】：主程序启动时（App 启动或 MainWindow 初始化时）只调用一次。
-        /// </summary>
         public void InitializePlugins(string pluginDir)
         {
             if (!Directory.Exists(pluginDir)) return;
 
             _factories.Clear();
-
-            // 精确匹配 "MVS.Camera.*.dll"
             var dllFiles = Directory.GetFiles(pluginDir, "MVS.Camera.*.dll", SearchOption.TopDirectoryOnly);
 
             foreach (var file in dllFiles)
@@ -56,7 +45,6 @@ namespace MVS.Infrastructure
                             var factory = Activator.CreateInstance(type) as ICameraFactory;
                             if (factory != null)
                             {
-                                // 只存工厂，不再这里进行硬件扫描
                                 _factories.Add(factory);
                                 System.Diagnostics.Debug.WriteLine($"[PluginLoader] 成功加载工厂: {factory.Name}");
                             }
@@ -71,68 +59,73 @@ namespace MVS.Infrastructure
         }
 
         /// <summary>
-        /// 2. 硬件扫描接口：不需要加载 DLL，直接指挥已有的工厂去找设备。
-        /// 【建议调用时机】：界面上的“刷新列表”按钮点击时。
+        /// 统一在 Manager 中使用海康 SDK 扫描所有相机
         /// </summary>
         public void ScanAllCameras()
         {
-            // 每次扫描前清空旧的设备档案
             _discoveredCameras.Clear();
 
-            // 让所有已加载的工厂去干活
-            foreach (var factory in _factories)
+            // 设定要扫描的总线类型
+            DeviceTLayerType enumTLayerType = DeviceTLayerType.MvGigEDevice | DeviceTLayerType.MvUsbDevice;
+            List<IDeviceInfo> deviceInfoList = new List<IDeviceInfo>();
+
+            // 统一调用海康底层 SDK 进行硬件枚举
+            int nRet = DeviceEnumerator.EnumDevices(enumTLayerType, out deviceInfoList);
+
+            if (nRet == MvError.MV_OK)
             {
-                try
+                foreach (var info in deviceInfoList)
                 {
-                    var discoveredCameras = factory.ScanCameras();
-
-                    if (discoveredCameras != null)
+                    // 提取信息
+                    var metaInfo = new CameraMetaInfo
                     {
-                        foreach (var info in discoveredCameras)
-                        {
-                            if (!string.IsNullOrEmpty(info.SerialNumber))
-                            {
-                                _discoveredCameras.TryAdd(info.SerialNumber, new CameraDescriptor
-                                {
-                                    Factory = factory,
-                                    MetaInfo = info
-                                });
+                        VendorName = string.IsNullOrEmpty(info.ManufacturerName) ? "Unknown" : info.ManufacturerName,
+                        SerialNumber = info.SerialNumber,
+                        ModelName = info.ModelName,
+                        UserDefinedName = info.UserDefinedName
+                    };
 
-                                System.Diagnostics.Debug.WriteLine($"[Scanner] 发现设备: {info.SerialNumber} ({info.VendorName})");
-                            }
-                        }
+                    // 【核心分配逻辑】：扫描到了相机，我们需要决定把它分发给哪个工厂去实例化
+                    // 这里通过比较 VendorName 和 插件的 Name 来匹配 (例如：如果扫到 "Hikvision"，就找 Name 包含 "Hik" 的工厂)
+                    var matchedFactory = _factories.FirstOrDefault(f =>
+                        metaInfo.VendorName.IndexOf("GEV", StringComparison.OrdinalIgnoreCase) >= 0  ||
+                        metaInfo.VendorName.IndexOf("Dalsa", StringComparison.OrdinalIgnoreCase) >= 0 && f.Name.Contains("Dalsa")
+                    // 如果都没有匹配上，默认给第一个加载的工厂（或者给专门的通用 GigE 工厂）
+                    ) ?? _factories.FirstOrDefault();
+
+                    if (!string.IsNullOrEmpty(metaInfo.SerialNumber))
+                    {
+                        _discoveredCameras.TryAdd(metaInfo.SerialNumber, new CameraDescriptor
+                        {
+                            Factory = matchedFactory,
+                            MetaInfo = metaInfo
+                        });
+
+                        System.Diagnostics.Debug.WriteLine($"[Scanner] Manager统一扫描发现设备: {metaInfo.SerialNumber} ({metaInfo.VendorName}) -> 分配给工厂: {(matchedFactory != null ? matchedFactory.Name : "无")}");
                     }
                 }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[Scanner] {factory.Name} 扫描失败: {ex.Message}");
-                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[Scanner] 全局枚举设备失败，错误码: {nRet}");
             }
         }
 
-        /// <summary>
-        /// 提供给 UI 的菜单：只返回纯文本的元数据列表
-        /// </summary>
         public IEnumerable<CameraMetaInfo> GetAllDiscoveredCameraInfos()
         {
             return _discoveredCameras.Values.Select(d => d.MetaInfo);
         }
 
-        /// <summary>
-        /// 当用户真正点击“连接”时，才调用此方法实例化相机
-        /// </summary>
         public ICamera CreateAndConnectCamera(string sn)
         {
-            // 如果已经实例化过，直接返回
             if (_activeCameras.TryGetValue(sn, out var activeCamera))
-            {
                 return activeCamera;
-            }
 
-            // 如果字典里有这台相机的档案
             if (_discoveredCameras.TryGetValue(sn, out var descriptor))
             {
-                // 【延迟加载】：让对应的工厂去 new 一个 ICamera 实例
+                if (descriptor.Factory == null) return null;
+
+                // 依然是让工厂去 new 对象
                 var camera = descriptor.Factory.CreateCamera(descriptor.MetaInfo);
 
                 if (camera != null)
@@ -141,13 +134,9 @@ namespace MVS.Infrastructure
                     return camera;
                 }
             }
-
-            return null; // 没找到该 SN 的相机
+            return null;
         }
 
-        /// <summary>
-        /// 获取当前已经连接/实例化的相机
-        /// </summary>
         public ICamera GetActiveCamera(string sn) => _activeCameras.TryGetValue(sn, out var cam) ? cam : null;
     }
 }
