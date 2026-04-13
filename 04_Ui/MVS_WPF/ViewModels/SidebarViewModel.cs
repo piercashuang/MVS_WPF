@@ -95,21 +95,45 @@ namespace MVS_WPF.ViewModels
             string cameraSn = parameter as string;
             if (string.IsNullOrEmpty(cameraSn)) return;
 
+            // 先断开之前的连接
             ExecuteDisconnectCamera(null);
 
             System.Diagnostics.Debug.WriteLine($"[Sidebar] 正在尝试连接相机: {cameraSn}");
 
+            // 1. 获取相机实例
             _connectedCamera = MVS.Infrastructure.CameraManager.Instance.CreateAndConnectCamera(cameraSn);
 
-            if (_connectedCamera != null && _connectedCamera.Open())
+            if (_connectedCamera != null)
             {
-                _connectedCamera.ImageGrabbed += OnCameraImageGrabbed;
-                _connectedCamera.StartGrabbing();
-                MessageBox.Show($"相机 {cameraSn} 连接并取流成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                // 2. 尝试打开相机，并接收返回的状态对象
+                MVS.Contract.MvsStatus openStatus = _connectedCamera.Open();
+
+                // 【核心修改】：使用 .IsOk 进行判断
+                if (openStatus.IsOk)
+                {
+                    _connectedCamera.ImageGrabbed += OnCameraImageGrabbed;
+
+                    // 3. 尝试取流
+                    var grabStatus = _connectedCamera.StartGrabbing();
+                    if (grabStatus.IsOk)
+                    {
+                        MessageBox.Show($"相机 {cameraSn} 连接并取流成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        // 取流失败，显示具体错误信息
+                        MessageBox.Show($"取流失败: {grabStatus.MessageCn}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+                else
+                {
+                    // 打开失败，显示自定义状态类里的中文错误提示
+                    MessageBox.Show($"相机打开失败: {openStatus.MessageCn}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
             else
             {
-                MessageBox.Show("相机打开失败，请检查网络或占用情况！", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("未能在系统中创建相机实例！", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
