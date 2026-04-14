@@ -7,6 +7,7 @@ using System.Windows.Media;
 using MVS.Infrastructure;
 using MVS_WPF.Views;         // 存放 CameraPropertiesView 的地方
 using MVS_WPF.ViewModels;    // 存放 CameraPropertiesViewModel 和 SidebarViewModel 的地方
+using System.Threading.Tasks;
 
 namespace MVS_WPF
 {
@@ -21,13 +22,19 @@ namespace MVS_WPF
             // 核心新增：用代码动态生成下半部分的 UI 和绑定
             SetupMainContentUI();
 
+            // 订阅加载完成事件
+            this.Loaded += MainWindow_Loaded;
+        }
+
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+
             var sidebarBorder = ContentContainer.Children[0] as Border;
             var sidebarView = sidebarBorder?.Child as SidebarView;
             var sidebarVM = sidebarView?.DataContext as SidebarViewModel;
 
             if (sidebarVM != null && sidebarVM.ScanCamerasCommand.CanExecute(null))
             {
-                // 模拟用户点击“扫描”按钮
                 sidebarVM.ScanCamerasCommand.Execute(null);
             }
         }
