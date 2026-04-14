@@ -11,6 +11,9 @@ namespace MVS.Infrastructure
 {
     public sealed class CameraManager : SingletonBase<CameraManager>
     {
+
+        // 用于保护初始化和工厂列表的锁对象
+        private readonly object _syncLock = new object();
         // 1. 私有构造函数：负责所有内部容器的初始化
         private CameraManager()
         {
@@ -34,8 +37,10 @@ namespace MVS.Infrastructure
         public void InitializePlugins(string pluginDir)
         {
             if (!Directory.Exists(pluginDir)) return;
-
-            _factories.Clear();
+            lock (_syncLock) // 锁定工厂列表的修改
+            {
+                _factories.Clear();
+            }
             var dllFiles = Directory.GetFiles(pluginDir, "MVS.Camera.*.dll", SearchOption.TopDirectoryOnly);
 
             foreach (var file in dllFiles)
@@ -79,34 +84,38 @@ namespace MVS.Infrastructure
 
             if (nRet == MvError.MV_OK)
             {
-                foreach (var info in deviceInfoList)
+
+                lock (_syncLock) // 锁定工厂列表的修改
                 {
-                    // 提取信息
-                    var metaInfo = new CameraMetaInfo
+                    foreach (var info in deviceInfoList)
                     {
-                        VendorName = string.IsNullOrEmpty(info.ManufacturerName) ? "Unknown" : info.ManufacturerName,
-                        SerialNumber = info.SerialNumber,
-                        ModelName = info.ModelName,
-                        UserDefinedName = info.UserDefinedName
-                    };
-
-                    // 【核心分配逻辑】：扫描到了相机，我们需要决定把它分发给哪个工厂去实例化
-                    // 这里通过比较 VendorName 和 插件的 Name 来匹配 (例如：如果扫到 "Hikvision"，就找 Name 包含 "Hik" 的工厂)
-                    var matchedFactory = _factories.FirstOrDefault(f =>
-                        metaInfo.VendorName.IndexOf("GEV", StringComparison.OrdinalIgnoreCase) >= 0  ||
-                        metaInfo.VendorName.IndexOf("Dalsa", StringComparison.OrdinalIgnoreCase) >= 0 && f.Name.Contains("Dalsa")
-                    // 如果都没有匹配上，默认给第一个加载的工厂（或者给专门的通用 GigE 工厂）
-                    ) ?? _factories.FirstOrDefault();
-
-                    if (!string.IsNullOrEmpty(metaInfo.SerialNumber))
-                    {
-                        _discoveredCameras.TryAdd(metaInfo.SerialNumber, new CameraDescriptor
+                        // 提取信息
+                        var metaInfo = new CameraMetaInfo
                         {
-                            Factory = matchedFactory,
-                            MetaInfo = metaInfo
-                        });
+                            VendorName = string.IsNullOrEmpty(info.ManufacturerName) ? "Unknown" : info.ManufacturerName,
+                            SerialNumber = info.SerialNumber,
+                            ModelName = info.ModelName,
+                            UserDefinedName = info.UserDefinedName
+                        };
 
-                        System.Diagnostics.Debug.WriteLine($"[Scanner] Manager统一扫描发现设备: {metaInfo.SerialNumber} ({metaInfo.VendorName}) -> 分配给工厂: {(matchedFactory != null ? matchedFactory.Name : "无")}");
+                        // 【核心分配逻辑】：扫描到了相机，我们需要决定把它分发给哪个工厂去实例化
+                        // 这里通过比较 VendorName 和 插件的 Name 来匹配 (例如：如果扫到 "Hikvision"，就找 Name 包含 "Hik" 的工厂)
+                        var matchedFactory = _factories.FirstOrDefault(f =>
+                            metaInfo.VendorName.IndexOf("GEV", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            metaInfo.VendorName.IndexOf("Dalsa", StringComparison.OrdinalIgnoreCase) >= 0 && f.Name.Contains("Dalsa")
+                        // 如果都没有匹配上，默认给第一个加载的工厂（或者给专门的通用 GigE 工厂）
+                        ) ?? _factories.FirstOrDefault();
+
+                        if (!string.IsNullOrEmpty(metaInfo.SerialNumber))
+                        {
+                            _discoveredCameras.TryAdd(metaInfo.SerialNumber, new CameraDescriptor
+                            {
+                                Factory = matchedFactory,
+                                MetaInfo = metaInfo
+                            });
+
+                            System.Diagnostics.Debug.WriteLine($"[Scanner] Manager统一扫描发现设备: {metaInfo.SerialNumber} ({metaInfo.VendorName}) -> 分配给工厂: {(matchedFactory != null ? matchedFactory.Name : "无")}");
+                        }
                     }
                 }
             }
